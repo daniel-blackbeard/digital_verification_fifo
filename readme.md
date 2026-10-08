@@ -7,6 +7,7 @@ The training is done in 5 stages:
 # Stage 0 - Write the RTL
 In this stage I write an RTL module only with the specifications. A documentation for the module is also provided
 # Stage 1 - Simple assertions
+Write a testbench with assertions (via bind) that check the behavior reported on the MAS, disregarding any knowledge on the RTL
 # Stage 2 - Object-oriented systemVerilog testbench
 # Stage 3 - Functional coverage
 # Stage 4 - Formal methods

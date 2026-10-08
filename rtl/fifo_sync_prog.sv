@@ -35,7 +35,7 @@ always_ff @(posedge clk or posedge rst) begin : FIFO_LOGIC
         if(rd_en & ~empty) begin
             rd_data <= fifo_mem[rd_ptr];
             rd_ptr  <= rd_ptr_p1;
-            count <= wr_en ? count : count - 1;
+            count <= wr_en & ~full ? count : count - 1;
         end
     end
 end

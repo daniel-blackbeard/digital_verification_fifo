@@ -90,6 +90,17 @@ property p_read_on_empty;
     empty & rd_en |=> $stable(rd_data);
 endproperty
 
+property p_almost_empty_flag;
+    @(posedge clk) disable iff (rst)
+    almost_empty |-> count <= {1'b0, almost_empty_tresh};
+endproperty
+
+
+property p_almost_full_flag;
+    @(posedge clk) disable iff (rst)
+    almost_full |-> count >= {1'b0, almost_full_tresh};
+endproperty
+
 assert property (p_no_counter_inc_on_full)  else begin $display("FAIL - FIFO count increased on full  (count = %d)           - time = %0t", count, $time); fail++; end
 assert property (p_no_counter_dec_on_empty) else begin $display("FAIL - FIFO count decreased on empty (count = %d)           - time = %0t", count, $time); fail++; end
 assert property (p_empty_full_neq)          else begin $display("FAIL - Empty and full both asserted                         - time = %0t", $time); fail++; end
@@ -103,6 +114,8 @@ assert property (p_almost_full)             else begin $display("FAIL - Almost f
 assert property (p_almost_empty_too)        else begin $display("FAIL - Almost empty is not also empty when empty            - time = %0t", count, $time); fail++; end
 assert property (p_almost_full_too)         else begin $display("FAIL - Almost full is not also full when full               - time = %0t", count, $time); fail++; end
 assert property (p_read_on_empty)           else begin $display("FAIL - Read on empty changed rd_data                        - time = %0t", count, $time); fail++; end
+assert property (p_almost_empty_flag)       else begin $display("FAIL - Almost empty not flagged when it should (count = %d) - time = %0t", count, $time); fail++; end
+assert property (p_almost_full_flag)        else begin $display("FAIL - Almost full not flagged when it should  (count = %d) - time = %0t", count, $time); fail++; end
 
 
 /* verilator lint_on SYNCASYNCNET */

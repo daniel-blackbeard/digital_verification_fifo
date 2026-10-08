@@ -1,0 +1,7 @@
+// Lint waivers, read by scripts/sim.ps1.
+// Each rule turns one warning off for the files matching the pattern.
+`verilator_config
+
+// Testbench signals declared ahead of their use. Remove once they are all used.
+// "?" stands for the path separator, which may be "/" or "\" on Windows.
+lint_off -rule UNUSEDSIGNAL -file "*?tb?*"

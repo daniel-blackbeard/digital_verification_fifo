@@ -1,0 +1,10 @@
+# Verilator build and simulation output
+build/
+logs/
+
+# Same outputs if a tool is ever run outside scripts/sim.ps1
+obj_dir/
+*.vcd
+*.fst
+*.log
+.vscode/ltex.dictionary.en-US.txt

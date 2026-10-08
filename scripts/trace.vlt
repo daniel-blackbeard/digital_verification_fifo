@@ -1,0 +1,13 @@
+// Waveform tracing rules, read by scripts/sim.ps1 (used when running with -Trace).
+// Signals excluded here are left out of the waveform at compile time.
+// Uncomment and adapt the examples below; "*" and "?" are wildcards.
+`verilator_config
+
+// Leave out every signal declared in the files matching a pattern:
+// tracing_off -file "*?rtl?some_file.sv"
+
+// Leave out one scope and everything below it:
+// tracing_off -scope "some_tb.some_instance*"
+
+// Bring back part of what was left out, a number of levels deep:
+// tracing_on -scope "some_tb.some_instance.some_child*" -levels 1

@@ -1,0 +1,5 @@
+{
+    // Universal Ctags from MSYS2 UCRT64: symbol completion, hover and go-to-definition
+    // for the Verilog-HDL/SystemVerilog extension (mshr-h.veriloghdl).
+    "verilog.ctags.path": "C:\\msys64\\ucrt64\\bin\\ctags.exe"
+}

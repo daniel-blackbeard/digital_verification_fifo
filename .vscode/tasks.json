@@ -1,0 +1,106 @@
+{
+    // Verilator flow through scripts/sim.ps1.
+    // To set the top module or add file lists, append to a task's "args", for example:
+    //   "-Top", "my_tb", "-FileList", "scripts/files.f,scripts/other.f"
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "sim: lint",
+            "type": "process",
+            "command": "powershell.exe",
+            "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/sim.ps1", "lint"],
+            "group": "test",
+            "presentation": { "clear": true },
+            "problemMatcher": {
+                "owner": "verilator",
+                "source": "verilator",
+                "fileLocation": ["autoDetect", "${workspaceFolder}"],
+                "pattern": {
+                    "regexp": "^%(Error|Warning)(?:-([A-Z0-9_]+))?: ((?:[A-Za-z]:)?[^:]+):(\\d+):(\\d+): (.*)$",
+                    "severity": 1,
+                    "code": 2,
+                    "file": 3,
+                    "line": 4,
+                    "column": 5,
+                    "message": 6
+                }
+            }
+        },
+        {
+            "label": "sim: build",
+            "type": "process",
+            "command": "powershell.exe",
+            "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/sim.ps1", "build"],
+            "group": "build",
+            "presentation": { "clear": true },
+            "problemMatcher": {
+                "owner": "verilator",
+                "source": "verilator",
+                "fileLocation": ["autoDetect", "${workspaceFolder}"],
+                "pattern": {
+                    "regexp": "^%(Error|Warning)(?:-([A-Z0-9_]+))?: ((?:[A-Za-z]:)?[^:]+):(\\d+):(\\d+): (.*)$",
+                    "severity": 1,
+                    "code": 2,
+                    "file": 3,
+                    "line": 4,
+                    "column": 5,
+                    "message": 6
+                }
+            }
+        },
+        {
+            "label": "sim: run",
+            "type": "process",
+            "command": "powershell.exe",
+            "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/sim.ps1", "run"],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": { "clear": true },
+            "problemMatcher": {
+                "owner": "verilator",
+                "source": "verilator",
+                "fileLocation": ["autoDetect", "${workspaceFolder}"],
+                "pattern": {
+                    "regexp": "^%(Error|Warning)(?:-([A-Z0-9_]+))?: ((?:[A-Za-z]:)?[^:]+):(\\d+):(\\d+): (.*)$",
+                    "severity": 1,
+                    "code": 2,
+                    "file": 3,
+                    "line": 4,
+                    "column": 5,
+                    "message": 6
+                }
+            }
+        },
+        {
+            "label": "sim: run with waves",
+            "type": "process",
+            "command": "powershell.exe",
+            "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/sim.ps1", "run", "-Trace"],
+            "group": "test",
+            "presentation": { "clear": true },
+            "problemMatcher": {
+                "owner": "verilator",
+                "source": "verilator",
+                "fileLocation": ["autoDetect", "${workspaceFolder}"],
+                "pattern": {
+                    "regexp": "^%(Error|Warning)(?:-([A-Z0-9_]+))?: ((?:[A-Za-z]:)?[^:]+):(\\d+):(\\d+): (.*)$",
+                    "severity": 1,
+                    "code": 2,
+                    "file": 3,
+                    "line": 4,
+                    "column": 5,
+                    "message": 6
+                }
+            }
+        },
+        {
+            "label": "sim: clean",
+            "type": "process",
+            "command": "powershell.exe",
+            "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/sim.ps1", "clean"],
+            "problemMatcher": []
+        }
+    ]
+}

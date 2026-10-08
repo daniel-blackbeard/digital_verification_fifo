@@ -66,13 +66,13 @@ endproperty
 
 property p_almost_empty;
     @(posedge clk) disable iff (rst)
-    count >= {1'b1, almost_empty_tresh} |-> almost_empty;
+    count <= {1'b0, almost_empty_tresh} |-> almost_empty;
 endproperty
 
 
 property p_almost_full;
     @(posedge clk) disable iff (rst)
-    count >= {1'b1, almost_full_tresh} |-> almost_full;
+    count >= {1'b0, almost_full_tresh} |-> almost_full;
 endproperty
 
 property p_almost_empty_too;
@@ -100,8 +100,8 @@ assert property (p_rw_same_clock)           else begin $display("FAIL - Count ch
 assert property (p_rw_same_clock_on_empty)  else begin $display("FAIL - Count changed on concurrent RW on empty (count = %d) - time = %0t", count, $time); fail++; end
 assert property (p_almost_empty)            else begin $display("FAIL - Almost empty not flagged                (count = %d) - time = %0t", count, $time); fail++; end
 assert property (p_almost_full)             else begin $display("FAIL - Almost full not flagged                 (count = %d) - time = %0t", count, $time); fail++; end
-assert property (p_almost_empty)            else begin $display("FAIL - Almost empty is not also empty when empty            - time = %0t", count, $time); fail++; end
-assert property (p_almost_full)             else begin $display("FAIL - Almost full is not also full when full               - time = %0t", count, $time); fail++; end
+assert property (p_almost_empty_too)        else begin $display("FAIL - Almost empty is not also empty when empty            - time = %0t", count, $time); fail++; end
+assert property (p_almost_full_too)         else begin $display("FAIL - Almost full is not also full when full               - time = %0t", count, $time); fail++; end
 assert property (p_read_on_empty)           else begin $display("FAIL - Read on empty changed rd_data                        - time = %0t", count, $time); fail++; end
 
 

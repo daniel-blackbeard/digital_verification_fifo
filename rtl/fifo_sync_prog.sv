@@ -47,6 +47,6 @@ assign empty     = count == '0;
 assign full      = count[$clog2(DEPTH)];
 
 assign almost_empty = count[$clog2(DEPTH)-1:0] <= almost_empty_tresh;
-assign almost_full  = count[$clog2(DEPTH)-1:0] >= almost_full_tresh;
+assign almost_full  = count >= {1'b0, almost_full_tresh};
 
 endmodule

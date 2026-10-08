@@ -262,7 +262,8 @@ initial begin
     
     #4
     $finish();
-    $display("Simulation completed");
+    $display("Simulation completed, %0d failures", u_fifo.u_fifo_sva.fail);
+    if(u_fifo.u_fifo_sva.fail == '0) $display("PASS"); else $display("FAIL");
 end
 
 endmodule

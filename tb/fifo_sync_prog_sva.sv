@@ -16,7 +16,6 @@ module fifo_sync_prog_sva#(
     input  logic [$clog2(DEPTH)-1:0] almost_full_tresh,
     input  logic [$clog2(DEPTH):0]   count
 );
-/* verilator lint_off SYNCASYNCNET */
 logic [31:0] fail;
 
 property p_empty_on_reset;
@@ -109,6 +108,7 @@ assert property (p_full_on_reset)           else begin $display("FAIL - Full fla
 assert property (p_count_on_reset)          else begin $display("FAIL - Count not zero on reset                              - time = %0t", $time); fail++; end
 assert property (p_rw_same_clock)           else begin $display("FAIL - Count changed on concurrent RW (not full or empty)   - time = %0t", $time); fail++; end
 assert property (p_rw_same_clock_on_empty)  else begin $display("FAIL - Count changed on concurrent RW on empty (count = %d) - time = %0t", count, $time); fail++; end
+assert property (p_rw_same_clock_on_full)   else begin $display("FAIL - Count changed on concurrent RW on full  (count = %d) - time = %0t", count, $time); fail++; end
 assert property (p_almost_empty)            else begin $display("FAIL - Almost empty not flagged                (count = %d) - time = %0t", count, $time); fail++; end
 assert property (p_almost_full)             else begin $display("FAIL - Almost full not flagged                 (count = %d) - time = %0t", count, $time); fail++; end
 assert property (p_almost_empty_too)        else begin $display("FAIL - Almost empty is not also empty when empty            - time = %0t", count, $time); fail++; end
@@ -118,5 +118,4 @@ assert property (p_almost_empty_flag)       else begin $display("FAIL - Almost e
 assert property (p_almost_full_flag)        else begin $display("FAIL - Almost full not flagged when it should  (count = %d) - time = %0t", count, $time); fail++; end
 
 
-/* verilator lint_on SYNCASYNCNET */
 endmodule

@@ -5,3 +5,14 @@
 // Testbench signals declared ahead of their use. Remove once they are all used.
 // "?" stands for the path separator, which may be "/" or "\" on Windows.
 lint_off -rule UNUSEDSIGNAL -file "*?tb?*"
+
+// Interface inputs are driven by the driver class through a virtual interface,
+// which the UNDRIVEN check does not follow.
+lint_off -rule UNDRIVEN -file "*fifo_if.sv"
+
+// Moved here from the lint_off/lint_on comments that wrapped the run task.
+lint_off -rule WIDTHTRUNC -file "*generator.sv"
+
+// The assertions sample rst synchronously while the RTL uses it as an async reset.
+// Moved here from the lint_off/lint_on comments in the assertion module.
+lint_off -rule SYNCASYNCNET -file "*fifo_sync_prog_sva.sv"

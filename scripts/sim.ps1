@@ -66,8 +66,14 @@ function Initialize-Environment {
     if (-not (Test-Path $Verilator)) { Fail "Verilator not found at $Verilator" }
     # The built-in default (/ucrt64/share/verilator) only resolves inside an MSYS2 shell.
     $env:VERILATOR_ROOT = ($Msys2Root -replace '\\', '/') + '/ucrt64/share/verilator'
-    # ucrt64\bin: g++, python3. usr\bin: make and the POSIX shell it needs.
-    $env:Path = "$UcrtBin;$UsrBin;$env:Path"
+    # usr\bin first: the generated C++ is compiled with the MSYS (Cygwin-runtime) g++,
+    # because Verilator only enables constraint solving where fork() exists, which the
+    # native UCRT64 g++ does not provide. make and its POSIX shell also live there.
+    # ucrt64\bin: python3 and the z3 solver.
+    $env:Path = "$UsrBin;$UcrtBin;$env:Path"
+    # Solver for randomize() with constraints; the path is relative to build/,
+    # where the simulation runs.
+    $env:VERILATOR_SOLVER = 'sh ../scripts/z3_lf.sh'
 }
 
 function Get-CommonArgs {
@@ -101,9 +107,6 @@ function Invoke-Build {
     # Verilator creates obj_dir itself but not its parent directory.
     New-Item -ItemType Directory -Force $BuildDir | Out-Null
     $vargs = @('--binary', '-j', '0', '-Mdir', $ObjDir, '-o', $SimName)
-    # g++ 16 fails to link the Verilator runtime with the default -Os
-    # (undefined reference to the std::string move constructor), so use -O2.
-    $vargs += @('-MAKEFLAGS', 'OPT_FAST=-O2', '-MAKEFLAGS', 'OPT_GLOBAL=-O2')
     if ($Trace) {
         $vargs += '--trace-vcd'
         if ($TraceDepth -gt 0) { $vargs += @('--trace-depth', "$TraceDepth") }

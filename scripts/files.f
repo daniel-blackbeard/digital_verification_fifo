@@ -1,3 +1,12 @@
+../tb/classes/transaction.sv
+../tb/classes/result.sv
+../tb/classes/fifo_if.sv
+../tb/classes/driver.sv
+../tb/classes/generator.sv
+../tb/classes/monitor.sv
+../tb/classes/scoreboard.sv
+../tb/classes/fifo_sync_prog_ref.sv
+../tb/classes/environment.sv
 ../rtl/fifo_sync_prog.sv
 ../tb/fifo_sync_prog_sva.sv
 ../tb/tb_fifo_sync_prog.sv

@@ -7,19 +7,19 @@ class environment;
   scoreboard         scb;
   
 
-  mailbox #(transaction) gen_drv, gen_ref;
+  mailbox #(transaction) gen_drv, mon_ref;
   mailbox #(result) mon_scb, ref_scb;
 
   function new(virtual fifo_if vif);
     gen_drv = new();
-    gen_ref = new();
     mon_scb = new();
+    mon_ref = new();
     ref_scb = new();
 
-    gen     = new(gen_drv, gen_ref);
+    gen     = new(gen_drv);
     drv     = new(vif, gen_drv);
-    mon     = new(vif, mon_scb);
-    ref_mod = new(gen_ref, ref_scb);
+    mon     = new(vif, mon_scb, mon_ref);
+    ref_mod = new(mon_ref, ref_scb);
     scb     = new(mon_scb, ref_scb);
   endfunction
 

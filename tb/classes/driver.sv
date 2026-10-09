@@ -13,12 +13,12 @@ class driver;
         forever begin
             gen_drv.get(tx);
 
-            @(posedge vif.clk);
-            vif.rd_en   = tx.op[0];
-            vif.wr_en   = tx.op[1];
-            vif.wr_data = tx.wr_data;
-            vif.almost_empty_tresh = tx.th_empty;
-            vif.almost_full_tresh  = tx.th_full;
+            @(vif.cb);
+            vif.cb.rd_en   <= tx.op[0];
+            vif.cb.wr_en   <= tx.op[1];
+            vif.cb.wr_data <= tx.wr_data;
+            vif.cb.almost_empty_tresh <= tx.th_empty;
+            vif.cb.almost_full_tresh  <= tx.th_full;
         end
     endtask
 endclass

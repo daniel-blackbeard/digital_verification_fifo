@@ -46,14 +46,16 @@ initial begin
     $dumpfile("waveform.vcd");
     $dumpvars(1, tb_fifo_sync_prog);
 
-    env.run(10);
     rst <= '1;
     #8
     rst <= '0;
-    
-    $display("Simulation completed, %0d failures", u_fifo.u_fifo_sva.fail);
-    if(u_fifo.u_fifo_sva.fail == '0) $display("PASS"); else $display("FAIL");
-    if(env.scb.fail == '0) $display("PASS"); else $display("FAIL");
+    env.run(10);
+
+    $display("Simulation completed, %0d failures from SVA", u_fifo.u_fifo_sva.fail);
+    if(u_fifo.u_fifo_sva.fail == '0) $display("PASS\n"); else $display("FAIL\n");
+
+    $display("Simulation completed, %0d failures from OOSV", env.scb.fail);
+    if(env.scb.fail == '0) $display("PASS\n"); else $display("FAIL\n");
     $finish();
 
 end

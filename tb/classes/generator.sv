@@ -1,11 +1,9 @@
 class generator #(int DEPTH=16);
 
   mailbox #(transaction) gen_drv;
-  mailbox #(transaction) gen_ref;
 
-  function new(mailbox #(transaction) gd, mailbox #(transaction) gr);
+  function new(mailbox #(transaction) gd);
     this.gen_drv = gd;
-    this.gen_ref = gr;
   endfunction
 
     task run(int num_transactions);
@@ -15,8 +13,7 @@ class generator #(int DEPTH=16);
             if (!tx.randomize()) $fatal("Randomization failed!");
 
             // Send the packet to both the physical driver and the math model
-            gen_drv.put(tx); 
-            gen_ref.put(tx); 
+            gen_drv.put(tx);
         end
     endtask
 
@@ -27,8 +24,7 @@ class generator #(int DEPTH=16);
 
             if (!tx.randomize() with {op == WRITE;}) $fatal("Randomization failed!");
 
-            gen_drv.put(tx); 
-            gen_ref.put(tx); 
+            gen_drv.put(tx);
         end
     endtask
 
@@ -39,8 +35,7 @@ class generator #(int DEPTH=16);
 
             if (!tx.randomize() with {op == READ;}) $fatal("Randomization failed!");
 
-            gen_drv.put(tx); 
-            gen_ref.put(tx); 
+            gen_drv.put(tx);
         end
     endtask
 endclass

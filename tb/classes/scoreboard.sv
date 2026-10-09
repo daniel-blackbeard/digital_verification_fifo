@@ -21,42 +21,42 @@ class scoreboard;
             if(rxr.count == rxs.count) begin
                 ;
             end else begin
-                $display("FAIL - reference and dut count doesn't match (%d vs %d)", rxr.count, rxs.count);
+                $display("FAIL - reference and dut count doesn't match (%d vs %d) - time %0.d", rxr.count, rxs.count, $time);
                 fail++;
             end
 
             if(rxr.empty == rxs.empty) begin
                 ;
             end else begin
-                $display("FAIL - reference and dut empty doesn't match (%d vs %d)", rxr.empty, rxs.empty);
+                $display("FAIL - reference and dut empty doesn't match (%d vs %d) - time %0.d", rxr.empty, rxs.empty, $time);
                 fail++;
             end
 
             if(rxr.full == rxs.full) begin
                 ;
             end else begin
-                $display("FAIL - reference and dut full doesn't match (%d vs %d)", rxr.full, rxs.full);
+                $display("FAIL - reference and dut full doesn't match (%d vs %d) - time %0.d", rxr.full, rxs.full, $time);
                 fail++;
             end
 
             if(rxr.almost_empty == rxs.almost_empty) begin
                 ;
             end else begin
-                $display("FAIL - reference and dut almost_empty doesn't match (%d vs %d)", rxr.almost_empty, rxs.almost_empty);
+                $display("FAIL - reference and dut almost_empty doesn't match (%d vs %d) - time %0.d", rxr.almost_empty, rxs.almost_empty, $time);
                 fail++;
             end
 
             if(rxr.almost_full == rxs.almost_full) begin
                 ;
             end else begin
-                $display("FAIL - reference and dut almost_full doesn't match (%d vs %d)", rxr.almost_full, rxs.almost_full);
+                $display("FAIL - reference and dut almost_full doesn't match (%d vs %d) - time %0.d", rxr.almost_full, rxs.almost_full, $time);
                 fail++;
             end
 
             if(rxr.rd_data == rxs.rd_data) begin
                 ;
             end else begin
-                $display("FAIL - reference and dut rd_data doesn't match (%d vs %d)", rxr.rd_data, rxs.rd_data);
+                $display("FAIL - reference and dut rd_data doesn't match (%d vs %d) - time %0.d", rxr.rd_data, rxs.rd_data, $time);
                 fail++;
             end
         end

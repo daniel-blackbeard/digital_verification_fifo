@@ -51,11 +51,11 @@ initial begin
     rst <= '0;
 
     env.setup();
-    for(int n=0; n<10; n++) begin
+    for(int n=0; n<8; n++) begin
         env.gen.fill_fifo();
-        env.gen.run(16);
+        env.gen.run(32);
         env.gen.empty_fifo();
-        env.gen.run(16);
+        env.gen.run(32);
     end
     env.wait_until_done();
     env.report_results();

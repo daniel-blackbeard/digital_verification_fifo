@@ -9,5 +9,6 @@ In this stage I write an RTL module only with the specifications. A documentatio
 # Stage 1 - Simple assertions
 Write a testbench with assertions (via bind) that check the behavior reported on the MAS, disregarding any knowledge on the RTL
 # Stage 2 - Object-oriented systemVerilog testbench
+A SV class framework that automatically generates stimulus, drives a reference model created from the understanding of the MAS and the actual RTL and makes comparisons between both block and gives back a score. This kind of testbench comes cleaner and it's capable of greater flexibility when it comes to tickling the corner cases.
 # Stage 3 - Functional coverage
 # Stage 4 - Formal methods

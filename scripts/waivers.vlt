@@ -16,3 +16,7 @@ lint_off -rule WIDTHTRUNC -file "*generator.sv"
 // The assertions sample rst synchronously while the RTL uses it as an async reset.
 // Moved here from the lint_off/lint_on comments in the assertion module.
 lint_off -rule SYNCASYNCNET -file "*fifo_sync_prog_sva.sv"
+
+// False positive: each argument of a covergroup "with function sample" is
+// reported as hiding itself (both locations in the message are the same line).
+lint_off -rule VARHIDDEN -file "*monitor.sv"

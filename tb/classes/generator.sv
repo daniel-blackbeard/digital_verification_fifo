@@ -18,7 +18,7 @@ class generator #(int DEPTH=16);
 
     task fill_fifo();
         transaction tx;
-        for(int i = 0; i < DEPTH; i++) begin
+        for(int i = 0; i <= DEPTH; i++) begin
             tx = new();
 
             if (!tx.randomize() with {op == WRITE;}) $fatal("Randomization failed!");

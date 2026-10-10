@@ -52,10 +52,14 @@ $SimName  = 'sim'
 $SimExe   = Join-Path $BuildDir "obj_dir\$SimName.exe"
 $LogDir   = Join-Path $RepoRoot 'logs'
 $SimLog   = Join-Path $LogDir 'sim.log'
+$CovData  = Join-Path $BuildDir 'coverage.dat'
+$CovLog   = Join-Path $LogDir 'coverage.log'
 
 $UcrtBin   = Join-Path $Msys2Root 'ucrt64\bin'
 $UsrBin    = Join-Path $Msys2Root 'usr\bin'
 $Verilator = Join-Path $UcrtBin 'verilator_bin.exe'
+# The Perl-free binary behind the verilator_coverage wrapper.
+$VerilatorCov = Join-Path $UcrtBin 'verilator_coverage_bin_dbg.exe'
 
 function Fail([string]$Message) {
     Write-Host "sim.ps1: $Message" -ForegroundColor Red
@@ -106,7 +110,8 @@ function Invoke-Build {
     Initialize-Environment
     # Verilator creates obj_dir itself but not its parent directory.
     New-Item -ItemType Directory -Force $BuildDir | Out-Null
-    $vargs = @('--binary', '-j', '0', '-Mdir', $ObjDir, '-o', $SimName)
+    # --coverage: code coverage and covergroup bins, written to build/coverage.dat at the end of the run.
+    $vargs = @('--binary', '-j', '0', '-Mdir', $ObjDir, '-o', $SimName, '--coverage')
     if ($Trace) {
         $vargs += '--trace-vcd'
         if ($TraceDepth -gt 0) { $vargs += @('--trace-depth', "$TraceDepth") }
@@ -115,6 +120,61 @@ function Invoke-Build {
     Write-Host "-- BUILD: verilator_bin $($vargs -join ' ')"
     & $Verilator @vargs
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+}
+
+# Writes logs/coverage.log: the summary from verilator_coverage, then one line per
+# covergroup bin (the tool has no per-bin listing), bins never hit first.
+function Write-CoverageReport {
+    $utf8 = New-Object System.Text.UTF8Encoding($false)
+    $out = New-Object System.Collections.Generic.List[string]
+    if (Test-Path $VerilatorCov) {
+        $ErrorActionPreference = 'Continue'
+        & $VerilatorCov $CovData 2>&1 | ForEach-Object { "$_" } |
+            Where-Object { $_ -notmatch 'shared_info::initialize' } | ForEach-Object { $out.Add($_) }
+        $ErrorActionPreference = 'Stop'
+    }
+    else {
+        $out.Add("verilator_coverage not found at $VerilatorCov, summary skipped")
+    }
+
+    # Data lines look like: C '<fields>' <count>, where every field is 0x01 key 0x02 value.
+    # Key "t" is the coverage type and "h" is group.coverpoint.bin for covergroup entries.
+    $bins = @()
+    foreach ($line in [System.IO.File]::ReadAllLines($CovData)) {
+        if ($line -notmatch "^C '(.*)' (\d+)$") { continue }
+        $count = [long]$Matches[2]
+        $fields = @{}
+        foreach ($field in ($Matches[1] -split [char]1)) {
+            $kv = $field -split [char]2, 2
+            if ($kv.Count -eq 2) { $fields[$kv[0]] = $kv[1] }
+        }
+        if ($fields['t'] -ne 'covergroup') { continue }
+        $name = "$($fields['h'])" -replace '^__vlAnonCG_', ''
+        $cut = $name.LastIndexOf('.')
+        if ($cut -lt 0) { continue }
+        $bins += [pscustomobject]@{ Point = $name.Substring(0, $cut); Bin = $name.Substring($cut + 1); Hits = $count }
+    }
+
+    $out.Add('')
+    if ($bins.Count -eq 0) {
+        $out.Add('Covergroup bins: none found')
+    }
+    else {
+        $hit = @($bins | Where-Object { $_.Hits -gt 0 }).Count
+        $out.Add("Covergroup bins: $hit of $($bins.Count) hit")
+        foreach ($point in ($bins | Group-Object Point | Sort-Object Name)) {
+            $pointHit = @($point.Group | Where-Object { $_.Hits -gt 0 }).Count
+            $out.Add('')
+            $out.Add("$($point.Name)  ($pointHit of $($point.Count))")
+            $width = ($point.Group | ForEach-Object { $_.Bin.Length } | Measure-Object -Maximum).Maximum
+            foreach ($b in ($point.Group | Sort-Object @{ Expression = { $_.Hits -gt 0 } }, Bin)) {
+                $mark = if ($b.Hits -eq 0) { 'MISS' } else { '    ' }
+                $out.Add(('  {0}  {1}  {2,8}' -f $mark, $b.Bin.PadRight($width), $b.Hits))
+            }
+        }
+    }
+    [System.IO.File]::WriteAllLines($CovLog, $out, $utf8)
+    Write-Host "-- COVERAGE: $CovLog"
 }
 
 function Invoke-Run {
@@ -145,6 +205,8 @@ function Invoke-Run {
     foreach ($w in (Get-ChildItem $BuildDir -File | Where-Object { $_.Extension -in '.vcd', '.fst' -and $_.LastWriteTime -ge $start })) {
         Write-Host "-- WAVES: $($w.FullName)"
     }
+    $cov = Get-Item $CovData -ErrorAction SilentlyContinue
+    if ($cov -and $cov.LastWriteTime -ge $start) { Write-CoverageReport }
     if ($code -ne 0) { exit $code }
 }
 

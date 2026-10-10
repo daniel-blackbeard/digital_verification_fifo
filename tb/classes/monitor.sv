@@ -1,11 +1,36 @@
-class monitor;
+class monitor#(int DEPTH=16);
 
-    typedef enum logic [1:0] {
-        IDLE  = 2'b00,
-        READ  = 2'b01,
-        WRITE = 2'b10,
-        BOTH  = 2'b11
-    } t_op_type;
+    covergroup cg_fifo_ops with function sample(
+        transaction #()::t_op_type f_op, 
+        logic [$clog2(DEPTH):0]    f_count, 
+        logic [3:0]                f_status
+    );
+
+        cp_op: coverpoint f_op {
+            bins read_only  = {transaction #()::READ};
+            bins write_only = {transaction #()::WRITE};
+            bins sim_rw     = {transaction #()::BOTH};
+            bins idle       = {transaction #()::IDLE};
+        }
+
+        cp_fill_level: coverpoint f_count {
+            bins fifo_empty    = {0};
+            bins fifo_partial  = {[1:15]};
+            bins fifo_full     = {16};
+        }
+
+        cp_status_flags: coverpoint f_status {
+            bins empty        = {4'b1010};
+            bins full         = {4'b0101};
+            bins almost_empty = {4'b0010};
+            bins almost_full  = {4'b0001};
+            bins no_status    = {4'b0000};
+        }
+
+        cr_op_vs_fill: cross cp_op, cp_fill_level;
+        cr_op_vs_stat: cross cp_op, cp_status_flags;
+
+    endgroup
 
     virtual fifo_if vif;
     mailbox #(result)      mon_scr;
@@ -17,6 +42,7 @@ class monitor;
         this.vif     = v;
         this.mon_scr = ms;
         this.mon_ref = mr;
+        cg_fifo_ops = new();
     endfunction
 
     task run();
@@ -36,7 +62,7 @@ class monitor;
             rx.almost_empty = vif.cb.almost_empty;
             rx.count        = vif.cb.count;
             
-            tx.op           = t_op_type'({vif.cbm.wr_en, vif.cbm.rd_en});
+            tx.op           = transaction #()::t_op_type'({vif.cbm.wr_en, vif.cbm.rd_en});
             tx.wr_data      = vif.cbm.wr_data;
             tx.th_empty     = vif.cbm.almost_empty_tresh;   
             tx.th_full      = vif.cbm.almost_full_tresh;
@@ -52,9 +78,12 @@ class monitor;
                 mon_scr.put(rx);
             end
             tx_prev = tx;
-            
+
+            cg_fifo_ops.sample(
+                tx.op, 
+                rx.count, 
+                {rx.empty, rx.full, rx.almost_empty, rx.almost_full});
         end
-        
     endtask
 
 endclass

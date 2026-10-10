@@ -19,7 +19,9 @@ class monitor;
 
     task run();
         result      rx;
-        transaction tx;
+        transaction tx, tx_prev;
+        tx_prev = null;
+
         forever begin
             @(vif.cb);
             rx = new();
@@ -31,14 +33,18 @@ class monitor;
             rx.almost_full  = vif.cb.almost_full;
             rx.almost_empty = vif.cb.almost_empty;
             rx.count        = vif.cb.count;
-
+            
             tx.op           = t_op_type'({vif.cbm.wr_en, vif.cbm.rd_en});
             tx.wr_data      = vif.cbm.wr_data;
             tx.th_empty     = vif.cbm.almost_empty_tresh;
             tx.th_full      = vif.cbm.almost_full_tresh;
-
-            mon_scr.put(rx);
-            mon_ref.put(tx);
+            
+            
+            if (tx_prev != null) begin 
+                mon_ref.put(tx_prev);
+                mon_scr.put(rx);
+            end
+            tx_prev = tx;
         end
         
     endtask

@@ -12,7 +12,6 @@ class generator #(int DEPTH=16);
             tx = new();
             if (!tx.randomize()) $fatal("Randomization failed!");
 
-            // Send the packet to both the physical driver and the math model
             gen_drv.put(tx);
         end
     endtask

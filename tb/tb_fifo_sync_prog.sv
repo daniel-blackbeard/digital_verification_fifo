@@ -49,7 +49,7 @@ initial begin
     rst <= '1;
     #8
     rst <= '0;
-    env.run(10);
+    env.run(200);
 
     $display("Simulation completed, %0d failures from SVA", u_fifo.u_fifo_sva.fail);
     if(u_fifo.u_fifo_sva.fail == '0) $display("PASS\n"); else $display("FAIL\n");

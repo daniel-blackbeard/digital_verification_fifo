@@ -54,6 +54,7 @@ $LogDir   = Join-Path $RepoRoot 'logs'
 $SimLog   = Join-Path $LogDir 'sim.log'
 $CovData  = Join-Path $BuildDir 'coverage.dat'
 $CovLog   = Join-Path $LogDir 'coverage.log'
+$AnnotDir = Join-Path $BuildDir 'annotated'
 
 $UcrtBin   = Join-Path $Msys2Root 'ucrt64\bin'
 $UsrBin    = Join-Path $Msys2Root 'usr\bin'
@@ -135,67 +136,140 @@ function Invoke-Build {
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 
-# Writes logs/coverage.log: the summary from verilator_coverage, then one line per
-# covergroup bin (the tool has no per-bin listing), bins never hit first.
+# Writes logs/coverage.log from build/coverage.dat and annotates the sources into
+# build/annotated. The log has, in order: the functional coverage total, code coverage
+# per file, the summary printed by verilator_coverage, and one line per covergroup bin
+# (the tool has no per-file or per-bin listing), bins never hit first.
 function Write-CoverageReport {
     $utf8 = New-Object System.Text.UTF8Encoding($false)
+    $latin1 = [System.Text.Encoding]::GetEncoding(28591)
     $out = New-Object System.Collections.Generic.List[string]
-    if (Test-Path $VerilatorCov) {
-        $ErrorActionPreference = 'Continue'
-        & $VerilatorCov $CovData 2>&1 | ForEach-Object { "$_" } |
-            Where-Object { $_ -notmatch 'shared_info::initialize' } | ForEach-Object { $out.Add($_) }
-        $ErrorActionPreference = 'Stop'
-    }
-    else {
-        $out.Add("verilator_coverage not found at $VerilatorCov, summary skipped")
-    }
 
     # Data lines look like: C '<fields>' <count>, where every field is 0x01 key 0x02 value.
-    # Key "t" is the coverage type and "h" is group.coverpoint.bin for covergroup entries.
+    # Key "t" is the coverage type, "f" the source file and "h" the hierarchy, which is
+    # group.coverpoint.bin for covergroup entries.
     $bins = @()
-    foreach ($line in [System.IO.File]::ReadAllLines($CovData)) {
-        if ($line -notmatch "^C '(.*)' (\d+)$") { continue }
+    $code = @{}
+    $codeLines = New-Object System.Collections.Generic.List[string]
+    $types = 'line', 'branch', 'toggle', 'expr'
+    foreach ($line in [System.IO.File]::ReadAllLines($CovData, $latin1)) {
+        if ($line -notmatch "^C '(.*)' (\d+)$") { $codeLines.Add($line); continue }
         $count = [long]$Matches[2]
         $fields = @{}
         foreach ($field in ($Matches[1] -split [char]1)) {
             $kv = $field -split [char]2, 2
             if ($kv.Count -eq 2) { $fields[$kv[0]] = $kv[1] }
         }
-        if ($fields['t'] -ne 'covergroup') { continue }
-        $name = "$($fields['h'])" -replace '^__vlAnonCG_', ''
-        $cut = $name.LastIndexOf('.')
-        if ($cut -lt 0) { continue }
-        $bins += [pscustomobject]@{ Point = $name.Substring(0, $cut); Bin = $name.Substring($cut + 1); Hits = $count; Kind = "$($fields['bin_type'])" }
+        if ($fields['t'] -eq 'covergroup') {
+            $name = "$($fields['h'])" -replace '^__vlAnonCG_', ''
+            $cut = $name.LastIndexOf('.')
+            if ($cut -ge 0) {
+                $bins += [pscustomobject]@{ Point = $name.Substring(0, $cut); Bin = $name.Substring($cut + 1); Hits = $count; Kind = "$($fields['bin_type'])" }
+            }
+            continue
+        }
+        $codeLines.Add($line)
+        if ($fields['t'] -notin $types) { continue }
+        $file = "$($fields['f'])"
+        if (-not $code.ContainsKey($file)) {
+            $code[$file] = @{}
+            foreach ($t in $types) { $code[$file][$t] = @(0, 0) }
+        }
+        $code[$file][$fields['t']][1]++
+        if ($count -gt 0) { $code[$file][$fields['t']][0]++ }
     }
-    # ignore_bins and illegal_bins are in the database too, and the tool's summary above
-    # counts them as ordinary bins. They are listed here but kept out of the totals.
-    $counted = @($bins | Where-Object { $_.Kind -notin 'ignore', 'illegal' })
 
-    $out.Add('')
+    # ignore_bins and illegal_bins are in the database too, and the tool's summary
+    # counts them as ordinary bins. They are listed below but kept out of the totals.
+    $counted = @($bins | Where-Object { $_.Kind -notin 'ignore', 'illegal' })
     if ($bins.Count -eq 0) {
-        $out.Add('Covergroup bins: none found')
+        $out.Add('Functional coverage: no covergroup bins found')
     }
     else {
         $hit = @($counted | Where-Object { $_.Hits -gt 0 }).Count
         $excluded = $bins.Count - $counted.Count
         $note = if ($excluded -gt 0) { " ($excluded ignore/illegal bins not counted)" } else { '' }
-        $out.Add("Covergroup bins: $hit of $($counted.Count) hit$note")
-        foreach ($point in ($bins | Group-Object Point | Sort-Object Name)) {
-            $pointBins = @($point.Group | Where-Object { $_.Kind -notin 'ignore', 'illegal' })
-            $pointHit = @($pointBins | Where-Object { $_.Hits -gt 0 }).Count
-            $out.Add('')
-            $out.Add("$($point.Name)  ($pointHit of $($pointBins.Count))")
-            $width = ($point.Group | ForEach-Object { $_.Bin.Length } | Measure-Object -Maximum).Maximum
-            # Order: missed bins, hit bins, then the excluded ones.
-            $order = { if ($_.Kind -in 'ignore', 'illegal') { 2 } elseif ($_.Hits -gt 0) { 1 } else { 0 } }
-            foreach ($b in ($point.Group | Sort-Object @{ Expression = $order }, Bin)) {
-                $mark = if ($b.Kind -in 'ignore', 'illegal') { $b.Kind.ToUpper() } elseif ($b.Hits -eq 0) { 'MISS' } else { '' }
-                $out.Add(('  {0}  {1}  {2,8}' -f $mark.PadRight(7), $b.Bin.PadRight($width), $b.Hits))
-            }
+        $out.Add("Functional coverage: $hit of $($counted.Count) covergroup bins hit$note")
+    }
+
+    # Code coverage per file, with paths shown relative to the repository.
+    $rows = @(foreach ($file in $code.Keys) {
+        $full = $file
+        if (-not [System.IO.Path]::IsPathRooted($file)) { $full = Join-Path $RepoRoot $file }
+        $full = [System.IO.Path]::GetFullPath($full)
+        if ($full.StartsWith($RepoRoot + '\', [System.StringComparison]::OrdinalIgnoreCase)) {
+            $shown = $full.Substring($RepoRoot.Length + 1) -replace '\\', '/'
+            $rank = 0
+        }
+        else {
+            $shown = '(verilator) ' + (Split-Path -Leaf $full)
+            $rank = 1
+        }
+        [pscustomobject]@{ Name = $shown; Rank = $rank; Data = $code[$file] }
+    })
+    $out.Add('')
+    $out.Add('Code coverage by file, points hit / total')
+    if ($rows.Count -gt 0) {
+        $width = [Math]::Max(4, ($rows | ForEach-Object { $_.Name.Length } | Measure-Object -Maximum).Maximum)
+        $format = '  {0}  {1,-15}{2,-15}{3,-15}{4,-15}'
+        $out.Add(($format -f 'file'.PadRight($width), 'line', 'branch', 'toggle', 'expr').TrimEnd())
+        foreach ($r in ($rows | Sort-Object Rank, Name)) {
+            $cells = @(foreach ($t in $types) {
+                $h, $n = $r.Data[$t]
+                if ($n -eq 0) { '-' } else { '{0}/{1} {2}%' -f $h, $n, [Math]::Floor(100 * $h / $n) }
+            })
+            $out.Add(($format -f $r.Name.PadRight($width), $cells[0], $cells[1], $cells[2], $cells[3]).TrimEnd())
+        }
+    }
+    else {
+        $out.Add('  none found')
+    }
+
+    $out.Add('')
+    if (Test-Path $VerilatorCov) {
+        # Annotated sources. The covergroup entries are left out: their file names lose
+        # the backslashes in Verilator's generated code and stop the annotation.
+        [System.IO.File]::WriteAllLines((Join-Path $BuildDir 'coverage_code.dat'), $codeLines, $latin1)
+        if (Test-Path $AnnotDir) { Remove-Item -Recurse -Force $AnnotDir -Confirm:$false }
+        $ErrorActionPreference = 'Continue'
+        $annot = & $VerilatorCov --annotate 'build/annotated' 'build/coverage_code.dat' 2>&1 | ForEach-Object { "$_" }
+        $annotCode = $LASTEXITCODE
+        $summary = & $VerilatorCov $CovData 2>&1 | ForEach-Object { "$_" }
+        $ErrorActionPreference = 'Stop'
+        if ($annotCode -eq 0) {
+            $out.Add("Annotated sources: $AnnotDir")
+            $out.Add('  Each line starts with its lowest hit count. "%" marks a line below 10 hits,')
+            $out.Add('  "~" a line where only some of its points are below 10.')
+        }
+        else {
+            $out.Add('Annotated sources: verilator_coverage --annotate failed')
+            $annot | Where-Object { $_ -match '^%' } | ForEach-Object { $out.Add("  $_") }
+        }
+        $out.Add('')
+        $out.Add('Summary printed by verilator_coverage. It adds all files together, and its')
+        $out.Add('covergroup line counts ignore/illegal bins as ordinary bins.')
+        $summary | Where-Object { $_ -match '^\s+\w+\s*:' } | ForEach-Object { $out.Add($_) }
+    }
+    else {
+        $out.Add("verilator_coverage not found at $VerilatorCov, annotation and tool summary skipped")
+    }
+
+    foreach ($point in ($bins | Group-Object Point | Sort-Object Name)) {
+        $pointBins = @($point.Group | Where-Object { $_.Kind -notin 'ignore', 'illegal' })
+        $pointHit = @($pointBins | Where-Object { $_.Hits -gt 0 }).Count
+        $out.Add('')
+        $out.Add("$($point.Name)  ($pointHit of $($pointBins.Count))")
+        $width = ($point.Group | ForEach-Object { $_.Bin.Length } | Measure-Object -Maximum).Maximum
+        # Order: missed bins, hit bins, then the excluded ones.
+        $order = { if ($_.Kind -in 'ignore', 'illegal') { 2 } elseif ($_.Hits -gt 0) { 1 } else { 0 } }
+        foreach ($b in ($point.Group | Sort-Object @{ Expression = $order }, Bin)) {
+            $mark = if ($b.Kind -in 'ignore', 'illegal') { $b.Kind.ToUpper() } elseif ($b.Hits -eq 0) { 'MISS' } else { '' }
+            $out.Add(('  {0}  {1}  {2,8}' -f $mark.PadRight(7), $b.Bin.PadRight($width), $b.Hits))
         }
     }
     [System.IO.File]::WriteAllLines($CovLog, $out, $utf8)
     Write-Host "-- COVERAGE: $CovLog"
+    if ((Test-Path $VerilatorCov) -and $annotCode -eq 0) { Write-Host "-- ANNOTATED: $AnnotDir" }
 }
 
 function Invoke-Run {

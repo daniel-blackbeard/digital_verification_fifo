@@ -47,10 +47,10 @@ class monitor#(int DEPTH=16);
             bins write_only_x_fifo_full    = {{transaction #()::WRITE, LVL_FULL}};
             bins read_write_x_fifo_partial = {{transaction #()::BOTH,  LVL_PARTIAL}};
 
-            ignore_bins drop_empty_writes = {{transaction #()::WRITE, LVL_EMPTY}};
-            ignore_bins drop_full_reads   = {{transaction #()::READ,  LVL_FULL}};
-            ignore_bins drop_empty_rw     = {{transaction #()::BOTH,  LVL_EMPTY}};
-            ignore_bins drop_full_rw      = {{transaction #()::BOTH,  LVL_FULL}};
+            illegal_bins drop_empty_writes = {{transaction #()::WRITE, LVL_EMPTY}};
+            illegal_bins drop_full_reads   = {{transaction #()::READ,  LVL_FULL}};
+            illegal_bins drop_empty_rw     = {{transaction #()::BOTH,  LVL_EMPTY}};
+            illegal_bins drop_full_rw      = {{transaction #()::BOTH,  LVL_FULL}};
         }
 
         cr_op_vs_stat: coverpoint {f_op, f_status} {
@@ -71,10 +71,10 @@ class monitor#(int DEPTH=16);
             bins read_write_x_almost_full  = {{transaction #()::BOTH,  ST_ALMOST_FULL}};
             bins read_write_x_no_status    = {{transaction #()::BOTH,  ST_NONE}};
 
-            ignore_bins drop_empty_writes = {{transaction #()::WRITE, ST_EMPTY}};
-            ignore_bins drop_full_reads   = {{transaction #()::READ,  ST_FULL}};
-            ignore_bins drop_empty_rw     = {{transaction #()::BOTH,  ST_EMPTY}};
-            ignore_bins drop_full_rw      = {{transaction #()::BOTH,  ST_FULL}};
+            illegal_bins drop_empty_writes = {{transaction #()::WRITE, ST_EMPTY}};
+            illegal_bins drop_full_reads   = {{transaction #()::READ,  ST_FULL}};
+            illegal_bins drop_empty_rw     = {{transaction #()::BOTH,  ST_EMPTY}};
+            illegal_bins drop_full_rw      = {{transaction #()::BOTH,  ST_FULL}};
         }
 
     endgroup

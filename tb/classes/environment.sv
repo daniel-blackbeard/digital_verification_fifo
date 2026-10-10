@@ -24,17 +24,23 @@ class environment;
     scb     = new(mon_scb, ref_scb);
   endfunction
 
-  task run(int test_length);
+  task setup();
     fork
       drv.run();
       mon.run();
       ref_mod.run();
       scb.run();
     join_none
+  endtask
 
-    gen.run(test_length);
+  task wait_until_done();
     while (gen_drv.num() > 0) @(vif.cb);
     repeat (5) @(vif.cb);
+  endtask
 
+  task report_results();
+    $display("Simulation completed, %0d passes and %0d failures from OOSV", scb.pass, scb.fail);
+    if(scb.fail == '0) $display("PASS\n"); else $display("FAIL\n");
+    $finish();
   endtask
 endclass

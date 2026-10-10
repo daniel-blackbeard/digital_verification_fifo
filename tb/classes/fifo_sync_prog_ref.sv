@@ -3,7 +3,7 @@ class fifo_sync_prog_ref  #(int DATA_WIDTH=8, DEPTH=16);
     mailbox #(transaction) mon_ref;
     mailbox #(result)      ref_scr;
 
-    logic [DATA_WIDTH-1:0] fifo_mem [DEPTH-1:0];
+    logic [DATA_WIDTH-1:0] fifo_mem [0:DEPTH-1];
     logic [DATA_WIDTH-1:0] rd_data_temp;
     int ptr;    
     logic r, w, ra, wa;
@@ -33,7 +33,7 @@ class fifo_sync_prog_ref  #(int DATA_WIDTH=8, DEPTH=16);
             end
             if(ra) begin
                 rd_data_temp = fifo_mem[0];
-                fifo_mem     = {fifo_mem[0], fifo_mem[DEPTH-1:1]};
+                fifo_mem     = {fifo_mem[1:DEPTH-1],fifo_mem[0]};
                 ptr          = ptr - 1;
             end
 

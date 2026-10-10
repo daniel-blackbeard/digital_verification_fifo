@@ -49,14 +49,19 @@ initial begin
     rst <= '1;
     #8
     rst <= '0;
-    env.run(200);
+
+    env.setup();
+    for(int n=0; n<10; n++) begin
+        env.gen.fill_fifo();
+        env.gen.run(16);
+        env.gen.empty_fifo();
+        env.gen.run(16);
+    end
+    env.wait_until_done();
+    env.report_results();
 
     $display("Simulation completed, %0d failures from SVA", u_fifo.u_fifo_sva.fail);
     if(u_fifo.u_fifo_sva.fail == '0) $display("PASS\n"); else $display("FAIL\n");
-
-    $display("Simulation completed, %0d failures from OOSV", env.scb.fail);
-    if(env.scb.fail == '0) $display("PASS\n"); else $display("FAIL\n");
-    $finish();
 
 end
 

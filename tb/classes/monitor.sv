@@ -1,5 +1,15 @@
 class monitor#(int DEPTH=16);
 
+    localparam logic [1:0] LVL_EMPTY   = 2'b10;
+    localparam logic [1:0] LVL_PARTIAL = 2'b00;
+    localparam logic [1:0] LVL_FULL    = 2'b01;
+
+    localparam logic [3:0] ST_EMPTY        = 4'b1010;
+    localparam logic [3:0] ST_FULL         = 4'b0101;
+    localparam logic [3:0] ST_ALMOST_EMPTY = 4'b0010;
+    localparam logic [3:0] ST_ALMOST_FULL  = 4'b0001;
+    localparam logic [3:0] ST_NONE         = 4'b0000;
+
     covergroup cg_fifo_ops with function sample(
         transaction #()::t_op_type f_op, 
         logic [$clog2(DEPTH):0]    f_count, 
@@ -9,7 +19,7 @@ class monitor#(int DEPTH=16);
         cp_op: coverpoint f_op {
             bins read_only  = {transaction #()::READ};
             bins write_only = {transaction #()::WRITE};
-            bins sim_rw     = {transaction #()::BOTH};
+            bins read_write = {transaction #()::BOTH};
             bins idle       = {transaction #()::IDLE};
         }
 
@@ -20,15 +30,52 @@ class monitor#(int DEPTH=16);
         }
 
         cp_status_flags: coverpoint f_status {
-            bins empty        = {4'b1010};
-            bins full         = {4'b0101};
-            bins almost_empty = {4'b0010};
-            bins almost_full  = {4'b0001};
-            bins no_status    = {4'b0000};
+            bins empty        = {ST_EMPTY};
+            bins full         = {ST_FULL};
+            bins almost_empty = {ST_ALMOST_EMPTY};
+            bins almost_full  = {ST_ALMOST_FULL};
+            bins no_status    = {ST_NONE};
         }
 
-        cr_op_vs_fill: cross cp_op, cp_fill_level;
-        cr_op_vs_stat: cross cp_op, cp_status_flags;
+        cr_op_vs_fill: coverpoint {f_op, f_count == '0, f_count == $bits(f_count)'(DEPTH)} {
+            bins idle_x_fifo_empty         = {{transaction #()::IDLE,  LVL_EMPTY}};
+            bins idle_x_fifo_partial       = {{transaction #()::IDLE,  LVL_PARTIAL}};
+            bins idle_x_fifo_full          = {{transaction #()::IDLE,  LVL_FULL}};
+            bins read_only_x_fifo_empty    = {{transaction #()::READ,  LVL_EMPTY}};
+            bins read_only_x_fifo_partial  = {{transaction #()::READ,  LVL_PARTIAL}};
+            bins write_only_x_fifo_partial = {{transaction #()::WRITE, LVL_PARTIAL}};
+            bins write_only_x_fifo_full    = {{transaction #()::WRITE, LVL_FULL}};
+            bins read_write_x_fifo_partial = {{transaction #()::BOTH,  LVL_PARTIAL}};
+
+            ignore_bins drop_empty_writes = {{transaction #()::WRITE, LVL_EMPTY}};
+            ignore_bins drop_full_reads   = {{transaction #()::READ,  LVL_FULL}};
+            ignore_bins drop_empty_rw     = {{transaction #()::BOTH,  LVL_EMPTY}};
+            ignore_bins drop_full_rw      = {{transaction #()::BOTH,  LVL_FULL}};
+        }
+
+        cr_op_vs_stat: coverpoint {f_op, f_status} {
+            bins idle_x_empty              = {{transaction #()::IDLE,  ST_EMPTY}};
+            bins idle_x_full               = {{transaction #()::IDLE,  ST_FULL}};
+            bins idle_x_almost_empty       = {{transaction #()::IDLE,  ST_ALMOST_EMPTY}};
+            bins idle_x_almost_full        = {{transaction #()::IDLE,  ST_ALMOST_FULL}};
+            bins idle_x_no_status          = {{transaction #()::IDLE,  ST_NONE}};
+            bins read_only_x_empty         = {{transaction #()::READ,  ST_EMPTY}};
+            bins read_only_x_almost_empty  = {{transaction #()::READ,  ST_ALMOST_EMPTY}};
+            bins read_only_x_almost_full   = {{transaction #()::READ,  ST_ALMOST_FULL}};
+            bins read_only_x_no_status     = {{transaction #()::READ,  ST_NONE}};
+            bins write_only_x_full         = {{transaction #()::WRITE, ST_FULL}};
+            bins write_only_x_almost_empty = {{transaction #()::WRITE, ST_ALMOST_EMPTY}};
+            bins write_only_x_almost_full  = {{transaction #()::WRITE, ST_ALMOST_FULL}};
+            bins write_only_x_no_status    = {{transaction #()::WRITE, ST_NONE}};
+            bins read_write_x_almost_empty = {{transaction #()::BOTH,  ST_ALMOST_EMPTY}};
+            bins read_write_x_almost_full  = {{transaction #()::BOTH,  ST_ALMOST_FULL}};
+            bins read_write_x_no_status    = {{transaction #()::BOTH,  ST_NONE}};
+
+            ignore_bins drop_empty_writes = {{transaction #()::WRITE, ST_EMPTY}};
+            ignore_bins drop_full_reads   = {{transaction #()::READ,  ST_FULL}};
+            ignore_bins drop_empty_rw     = {{transaction #()::BOTH,  ST_EMPTY}};
+            ignore_bins drop_full_rw      = {{transaction #()::BOTH,  ST_FULL}};
+        }
 
     endgroup
 
@@ -76,13 +123,14 @@ class monitor#(int DEPTH=16);
                 tx_prev.th_full      = $bits(tx.th_full)'(th_full);
                 mon_ref.put(tx_prev);
                 mon_scr.put(rx);
-            end
-            tx_prev = tx;
 
-            cg_fifo_ops.sample(
-                tx.op, 
+                cg_fifo_ops.sample(
+                tx_prev.op, 
                 rx.count, 
                 {rx.empty, rx.full, rx.almost_empty, rx.almost_full});
+            end
+
+            tx_prev = tx;
         end
     endtask
 

@@ -75,9 +75,21 @@ function Initialize-Environment {
     # native UCRT64 g++ does not provide. make and its POSIX shell also live there.
     # ucrt64\bin: python3 and the z3 solver.
     $env:Path = "$UsrBin;$UcrtBin;$env:Path"
-    # Solver for randomize() with constraints; the path is relative to build/,
-    # where the simulation runs.
-    $env:VERILATOR_SOLVER = 'sh ../scripts/z3_lf.sh'
+    # Solver for randomize() with constraints, reached through the bridge built by
+    # Build-SolverBridge. Verilator splits this on spaces, so no path in it may contain
+    # one; the bridge path is relative to build/, where the simulation runs.
+    $env:VERILATOR_SOLVER = './z3_bridge.exe ' + ($Msys2Root -replace '\\', '/') + '/ucrt64/bin/z3.exe --in'
+}
+
+# Compiles scripts/z3_bridge.c into build/ when missing or older than its source.
+# It must be built with the MSYS gcc; see the comment at the top of the source.
+function Build-SolverBridge {
+    $src = Join-Path $PSScriptRoot 'z3_bridge.c'
+    $exe = Join-Path $BuildDir 'z3_bridge.exe'
+    if ((Test-Path $exe) -and ((Get-Item $exe).LastWriteTime -ge (Get-Item $src).LastWriteTime)) { return }
+    Write-Host '-- BRIDGE: gcc scripts/z3_bridge.c -> build/z3_bridge.exe'
+    & (Join-Path $UsrBin 'gcc.exe') -O2 -Wall -o 'build/z3_bridge.exe' 'scripts/z3_bridge.c' -lpthread
+    if ($LASTEXITCODE -ne 0) { Fail 'Could not compile scripts/z3_bridge.c' }
 }
 
 function Get-CommonArgs {
@@ -110,6 +122,7 @@ function Invoke-Build {
     Initialize-Environment
     # Verilator creates obj_dir itself but not its parent directory.
     New-Item -ItemType Directory -Force $BuildDir | Out-Null
+    Build-SolverBridge
     # --coverage: code coverage and covergroup bins, written to build/coverage.dat at the end of the run.
     $vargs = @('--binary', '-j', '0', '-Mdir', $ObjDir, '-o', $SimName, '--coverage')
     if ($Trace) {
@@ -152,24 +165,32 @@ function Write-CoverageReport {
         $name = "$($fields['h'])" -replace '^__vlAnonCG_', ''
         $cut = $name.LastIndexOf('.')
         if ($cut -lt 0) { continue }
-        $bins += [pscustomobject]@{ Point = $name.Substring(0, $cut); Bin = $name.Substring($cut + 1); Hits = $count }
+        $bins += [pscustomobject]@{ Point = $name.Substring(0, $cut); Bin = $name.Substring($cut + 1); Hits = $count; Kind = "$($fields['bin_type'])" }
     }
+    # ignore_bins and illegal_bins are in the database too, and the tool's summary above
+    # counts them as ordinary bins. They are listed here but kept out of the totals.
+    $counted = @($bins | Where-Object { $_.Kind -notin 'ignore', 'illegal' })
 
     $out.Add('')
     if ($bins.Count -eq 0) {
         $out.Add('Covergroup bins: none found')
     }
     else {
-        $hit = @($bins | Where-Object { $_.Hits -gt 0 }).Count
-        $out.Add("Covergroup bins: $hit of $($bins.Count) hit")
+        $hit = @($counted | Where-Object { $_.Hits -gt 0 }).Count
+        $excluded = $bins.Count - $counted.Count
+        $note = if ($excluded -gt 0) { " ($excluded ignore/illegal bins not counted)" } else { '' }
+        $out.Add("Covergroup bins: $hit of $($counted.Count) hit$note")
         foreach ($point in ($bins | Group-Object Point | Sort-Object Name)) {
-            $pointHit = @($point.Group | Where-Object { $_.Hits -gt 0 }).Count
+            $pointBins = @($point.Group | Where-Object { $_.Kind -notin 'ignore', 'illegal' })
+            $pointHit = @($pointBins | Where-Object { $_.Hits -gt 0 }).Count
             $out.Add('')
-            $out.Add("$($point.Name)  ($pointHit of $($point.Count))")
+            $out.Add("$($point.Name)  ($pointHit of $($pointBins.Count))")
             $width = ($point.Group | ForEach-Object { $_.Bin.Length } | Measure-Object -Maximum).Maximum
-            foreach ($b in ($point.Group | Sort-Object @{ Expression = { $_.Hits -gt 0 } }, Bin)) {
-                $mark = if ($b.Hits -eq 0) { 'MISS' } else { '    ' }
-                $out.Add(('  {0}  {1}  {2,8}' -f $mark, $b.Bin.PadRight($width), $b.Hits))
+            # Order: missed bins, hit bins, then the excluded ones.
+            $order = { if ($_.Kind -in 'ignore', 'illegal') { 2 } elseif ($_.Hits -gt 0) { 1 } else { 0 } }
+            foreach ($b in ($point.Group | Sort-Object @{ Expression = $order }, Bin)) {
+                $mark = if ($b.Kind -in 'ignore', 'illegal') { $b.Kind.ToUpper() } elseif ($b.Hits -eq 0) { 'MISS' } else { '' }
+                $out.Add(('  {0}  {1}  {2,8}' -f $mark.PadRight(7), $b.Bin.PadRight($width), $b.Hits))
             }
         }
     }
